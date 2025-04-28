@@ -11,8 +11,8 @@ class BaseTagger(ABC):
         return self.df
 
     @abstractmethod
-    def generate_tags(self, row: pd.Series) -> list[str]:
-        """Return list of tags for a given row."""
+    def generate_tags(self, row: pd.Series) ->str:
+        """Return a string of comma separated tags based on the row's intent columns"""
         pass
     
     @staticmethod
