@@ -7,6 +7,6 @@ This tool helps you process lead data and integrate it with Mailchimp. It provid
 - **Upload Lead CSV**: Upload your Real Intent CSV file.
 - **Normalize Emails**: The tool normalizes the leads into one row per email address, splitting leads with multiple emails into separate rows.
 - **Email Filtering**: You can choose to exclude leads with no email address.
-- **Tag Mapping**: Automatically tags leads with a mapping of your choice based on the lead's Intent Categories.
+- **Tag Mapping**: Automatically assign tags to leads based on the lead's intent categories. Clients can customize the tag assignments with configurable options, allowing for flexible and tailored tagging.
 - **Download CSV**: Once the CSV is prepared, you can download the file for manual upload to Mailchimp.
 - **Send to Mailchimp**: Or directly send the tagged leads to a Mailchimp list in your account.
