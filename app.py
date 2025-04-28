@@ -5,6 +5,8 @@ from typing import Any
 from mailchimp_marketing import Client
 from mailchimp_marketing.api_client import ApiClientError
 
+from lead_tagger import BaseTagger, StandardTagger
+
 
 # -- Constants --
 default_columns = [
@@ -126,30 +128,6 @@ def normalize_emails(df: pd.DataFrame) -> pd.DataFrame:
             rows.append(new_row)
     return pd.DataFrame(rows)
 
-@st.cache_data
-def tag_leads(df, tag_mapping: dict[str, list[str]]) -> pd.DataFrame:
-    """
-    Build a Dataframe with a 'tags' column which gives the tags for
-    based on mapping of the intent columns to the tags provided by the user.
-    
-    Note: This function assumes that the DataFrame has already been normalized
-    to have a single 'email' column.
-    A lead will be tagged with multiple tags if it has multiple intent columns filled.
-    based on the mapping provided by the user.
-    """
-    df['tags'] = ""
-    
-    for idx, row in df.iterrows():
-        tags = []
-
-        for col, tags_list in tag_mapping.items():
-            if pd.notna(row[col]):
-                tags.extend(tags_list)
-        
-        df.at[idx, 'tags'] = ', '.join(tags)
-    
-    return df
-
 
 # -- Mailchimp Client Functions --
 @st.cache_resource
@@ -181,6 +159,13 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client):
     """Send categorized leads to Mailchimp"""
 
     return # to be implemented
+
+
+# -- Tagging Functions --
+@st.cache_data
+def tag_leads(df, tag_mapping, tagger_cls=StandardTagger) -> pd.DataFrame:
+    tagger = tagger_cls(df, tag_mapping)
+    return tagger.apply_tags()
 
 
 # -- Main App Loop --
@@ -218,8 +203,8 @@ if uploaded_file:
     if not include_no_email:
         df = df.dropna(subset=["email"])
 
-    # hoist email to first column
-    df = df[["email"] + [col for col in df.columns if col != "email"]]
+    # hoist email, name to first columns
+    df = df[["email", "first_name", "last_name"] + [col for col in df.columns if col not in ["email", "first_name", "last_name"]]]
 
     user_choice = st.radio("What would you like to do?", ["Download CSV file", "Send to Mailchimp"])
 
@@ -256,10 +241,15 @@ if uploaded_file:
                 tags_list = [tag.strip() for tag in tags_input.split(",")]
                 tag_mapping[col] = tags_list
         
-        tagged_df = tag_leads(df, tag_mapping)
+        tagging_options = st.radio("Tagging Options", ["Standard Tagger"], index=0)
+        
+        st.write(f"{tagging_options}: {BaseTagger.get_description(tagging_options)}")
+        
+        if tagging_options == "Standard Tagger":
+            tagged_df = tag_leads(df, tag_mapping, StandardTagger)
 
-        # hoist email, tags to first columns
-        tagged_df = tagged_df[["email", "tags"] + [col for col in tagged_df.columns if col not in ["email", "tags"]]]
+        # hoist email, tags, name to first columns
+        tagged_df = tagged_df[["email", "tags", "first_name", "last_name"] + [col for col in tagged_df.columns if col not in ["email", "tags", "first_name", "last_name"]]]
 
         st.subheader("Tagged Leads")
         st.write(tagged_df)
