@@ -152,7 +152,7 @@ def verify_mailchimp_credentials(api_key: str, server_prefix: str) -> bool:
         return False
 
 def fetch_mailchimp_lists(client: Client) -> dict[str, Any]:
-    return client.lists.get_all_lists() # note the usage of the underscore, so streamlit doesn't try to cache the client object(unhashable)
+    return client.lists.get_all_lists()
 
 def send_to_mailchimp(df: pd.DataFrame, client: Client):
     """Send categorized leads to Mailchimp"""
