@@ -5,7 +5,7 @@ from typing import Any
 from mailchimp_marketing import Client
 from mailchimp_marketing.api_client import ApiClientError
 
-from lead_tagger import BaseTagger, StandardTagger
+from lead_tagger import BaseTagger, StandardTagger, Custom_1_Tagger
 
 from streamlit_sortables import sort_items
 
@@ -165,8 +165,8 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client):
 
 # -- Tagging Functions --
 @st.cache_data
-def tag_leads(df, tag_mapping, tagger_cls=StandardTagger) -> pd.DataFrame:
-    tagger = tagger_cls(df, tag_mapping)
+def tag_leads(df: pd.DataFrame, tag_mapping: dict[str, list[str]], tagger_cls: BaseTagger = StandardTagger, priority_list: list[str] | None = None) -> pd.DataFrame:
+    tagger = tagger_cls(df, tag_mapping, priority_list)
     return tagger.apply_tags()
 
 
@@ -246,7 +246,7 @@ if uploaded_file:
         tagging_options = st.radio("Tagging Options", ["Standard Tagger", "Custom Tagger #1"], index=0)
         
         st.write(f"{tagging_options}: {BaseTagger.get_description(tagging_options)}")
-        
+                
         if tagging_options == "Standard Tagger":
             tagged_df = tag_leads(df, tag_mapping, StandardTagger)
         elif tagging_options == "Custom Tagger #1":
@@ -263,8 +263,8 @@ if uploaded_file:
             if not sorted_priority:
                 st.warning("Please input at least one mapping to continue.")
                 st.stop()
-
-            tagged_df = tag_leads(df, tag_mapping, StandardTagger)
+            
+            tagged_df = tag_leads(df, tag_mapping, Custom_1_Tagger, sorted_priority)
 
 
         # hoist email, tags, name to first columns

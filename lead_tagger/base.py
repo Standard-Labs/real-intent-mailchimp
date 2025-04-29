@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 class BaseTagger(ABC):
-    def __init__(self, df: pd.DataFrame, tag_mapping: dict[str, list[str]]):
+    def __init__(self, df: pd.DataFrame, tag_mapping: dict[str, list[str]], priority_list: list[str] = None):
         self.df = df.copy()
         self.tag_mapping = tag_mapping
+        self.priority_list = priority_list if priority_list else []
 
     def apply_tags(self) -> pd.DataFrame:
         self.df["tags"] = self.df.apply(self.generate_tags, axis=1)
