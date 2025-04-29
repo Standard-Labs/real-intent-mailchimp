@@ -1,2 +1,3 @@
 streamlit==1.44.1
 mailchimp_marketing==3.0.80
+streamlit-sortables==0.3.1
