@@ -151,9 +151,8 @@ def verify_mailchimp_credentials(api_key: str, server_prefix: str) -> bool:
         st.error(f"An unexpected error occurred: {e}")
         return False
 
-@st.cache_data(show_spinner="Fetching lists from Mailchimp...")
-def fetch_mailchimp_lists(_client: Client) -> dict[str, Any]:
-    return _client.lists.get_all_lists() # note the usage of the underscore, so streamlit doesn't try to cache the client object(unhashable)
+def fetch_mailchimp_lists(client: Client) -> dict[str, Any]:
+    return client.lists.get_all_lists()
 
 def send_to_mailchimp(df: pd.DataFrame, client: Client):
     """Send categorized leads to Mailchimp"""
@@ -217,7 +216,7 @@ if uploaded_file:
         st.download_button("Download CSV file", csv, "real-intent-mailchimp-leads.csv", "text/csv")
     
     elif user_choice == "Send to Mailchimp" and mailchimp_ready:
-        lists_data = fetch_mailchimp_lists(_client=get_mailchimp_client(api_key, server_prefix))
+        lists_data = fetch_mailchimp_lists(client=get_mailchimp_client(api_key, server_prefix))
         if lists_data:
             audience_options = {lst['name']: lst['id'] for lst in lists_data['lists']}
             list_name = st.selectbox("Select a List", list(audience_options.keys()))
