@@ -19,6 +19,7 @@ class BaseTagger(ABC):
     def get_description(tagger_type: str) -> str:
         """Static method to return description based on tagger type"""
         descriptions = {
-            "Standard Tagger": "Tags leads based on the intent columns provided, adding multiple tags if multiple intents are detected.",
+            "Standard Tagger": "Tags leads based on the intent columns provided, adding multiple (unique) tags if multiple intents are detected.",
+            "Custom Tagger #1": "Standard Tagger with custom logic that ensures only 1 tag per lead, and custom priority in the case of multiple intents.",
         }
         return descriptions.get(tagger_type, "No description available.")

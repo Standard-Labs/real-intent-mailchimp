@@ -7,6 +7,9 @@ from mailchimp_marketing.api_client import ApiClientError
 
 from lead_tagger import BaseTagger, StandardTagger
 
+from streamlit_sortables import sort_items
+
+
 
 # -- Constants --
 default_columns = [
@@ -240,12 +243,29 @@ if uploaded_file:
                 tags_list = [tag.strip() for tag in tags_input.split(",")]
                 tag_mapping[col] = tags_list
         
-        tagging_options = st.radio("Tagging Options", ["Standard Tagger"], index=0)
+        tagging_options = st.radio("Tagging Options", ["Standard Tagger", "Custom Tagger #1"], index=0)
         
         st.write(f"{tagging_options}: {BaseTagger.get_description(tagging_options)}")
         
         if tagging_options == "Standard Tagger":
             tagged_df = tag_leads(df, tag_mapping, StandardTagger)
+        elif tagging_options == "Custom Tagger #1":
+            
+            # Grab unique tags
+            all_tags = sorted({tag for tags in tag_mapping.values() for tag in tags})
+           
+            st.subheader("Set Priority for Tags")
+            st.caption("Drag to reorder tags. The first tag has the highest priority, the second tag has the second highest priority, and so on.")
+            
+            sorted_priority = sort_items(all_tags)
+
+            # only occurs if there are no tags
+            if not sorted_priority:
+                st.warning("Please input at least one mapping to continue.")
+                st.stop()
+
+            tagged_df = tag_leads(df, tag_mapping, StandardTagger)
+
 
         # hoist email, tags, name to first columns
         tagged_df = tagged_df[["email", "tags", "first_name", "last_name"] + [col for col in tagged_df.columns if col not in ["email", "tags", "first_name", "last_name"]]]
