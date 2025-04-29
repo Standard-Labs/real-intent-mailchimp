@@ -151,7 +151,6 @@ def verify_mailchimp_credentials(api_key: str, server_prefix: str) -> bool:
         st.error(f"An unexpected error occurred: {e}")
         return False
 
-@st.cache_data(show_spinner="Fetching lists from Mailchimp...")
 def fetch_mailchimp_lists(_client: Client) -> dict[str, Any]:
     return _client.lists.get_all_lists() # note the usage of the underscore, so streamlit doesn't try to cache the client object(unhashable)
 
