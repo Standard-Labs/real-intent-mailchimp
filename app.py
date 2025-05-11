@@ -168,21 +168,23 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[i
     
     Returns the number of successful additions and a list of errors.
     """
+    def _safe_get(val: Any) -> str:
+        """temporary wrapper to handle NaN values"""
+        return "" if pd.isna(val) else val
 
-    def _clean_phone(phone: str) -> str:
+    def _clean_phone(phone: Any) -> str:
         """Clean and format phone number to (###) ### - ####"""
+        
+        if pd.isna(phone):
+            return ""
+        
         try:
-            phone.strip()
-            
-            if pd.isna(phone):
-                return None
-            
+            phone = str(int(float(phone))).strip()
             if len(phone) == 10:
                 return f"({phone[:3]}) {phone[3:6]} - {phone[6:]}"
-            
-            return None
+            return ""
         except Exception as e:
-            return None
+            return ""
         
     successes: int = 0
     errors: list[Tuple[str, str]] = []
@@ -194,20 +196,27 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[i
                 continue
 
             merge_fields = {
-                "FNAME": row.get("first_name", ""),
-                "LNAME": row.get("last_name", ""),
-                "PHONE": _clean_phone(row.get("phone_1", "")) or "",
-                "BIRTHDAY": row.get("birth_month_and_year", "")
+                "FNAME": _safe_get(row.get("first_name", "")),
+                "LNAME": _safe_get(row.get("last_name", "")),
+                "PHONE": _clean_phone(row.get("phone_1", "")),
+                "BIRTHDAY": _safe_get(row.get("birth_month_and_year", ""))
             }
             
+            payload = {
+                "email_address": email,
+                "status": "subscribed",
+                "merge_fields": merge_fields,
+            }
+                        
+            if "tags" in df.columns:
+                raw_tags = _safe_get(row.get("tags", ""))
+                raw_tags = raw_tags.split(",") if isinstance(raw_tags, str) else []
+                if raw_tags:
+                    payload["tags"] = [tag.strip() for tag in raw_tags if tag.strip()]
+                        
             client.lists.add_list_member(
                 list_id,
-                {
-                    "email_address": email,
-                    "status": "subscribed",
-                    "merge_fields": merge_fields,
-                    "tags": row.get("tags", "").split(",") if "tags" in df.columns else [],
-                },
+                payload,
                 skip_merge_validation=True,
             )
 
