@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from typing import Any
+from typing import Any, Tuple
 
 from mailchimp_marketing import Client
 from mailchimp_marketing.api_client import ApiClientError
@@ -159,10 +159,67 @@ def fetch_mailchimp_lists(api_key: str, server_prefix: str) -> dict[str, Any]:
     return get_mailchimp_client(api_key, server_prefix).lists.get_all_lists()
 
 
-def send_to_mailchimp(df: pd.DataFrame, client: Client):
-    """Send categorized leads to Mailchimp"""
+def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[int, list[Tuple[str, str]]]:
+    """
+    Send categorized tags to a Mailchimp list.
+    
+    Note, this will not update leads that already exist (no way to tag them if upserted).
+    This will only add new leads to the list.
+    
+    Returns the number of successful additions and a list of errors.
+    """
 
-    return # to be implemented
+    def _clean_phone(phone: str) -> str:
+        """Clean and format phone number to (###) ### - ####"""
+        try:
+            phone.strip()
+            
+            if pd.isna(phone):
+                return None
+            
+            if len(phone) == 10:
+                return f"({phone[:3]}) {phone[3:6]} - {phone[6:]}"
+            
+            return None
+        except Exception as e:
+            return None
+        
+    successes: int = 0
+    errors: list[Tuple[str, str]] = []
+
+    for _, row in df.iterrows():
+        try:
+            email = row.get("email")
+            if not email:
+                continue
+
+            merge_fields = {
+                "FNAME": row.get("first_name", ""),
+                "LNAME": row.get("last_name", ""),
+                "PHONE": _clean_phone(row.get("phone_1", "")) or "",
+                "BIRTHDAY": row.get("birth_month_and_year", "")
+            }
+            
+            client.lists.add_list_member(
+                list_id,
+                {
+                    "email_address": email,
+                    "status": "subscribed",
+                    "merge_fields": merge_fields,
+                    "tags": row.get("tags", "").split(",") if "tags" in df.columns else [],
+                },
+                skip_merge_validation=True,
+            )
+
+            successes += 1
+
+        except ApiClientError as error:
+            errors.append((email, error.text))
+            
+        except Exception as e:
+            errors.append((email, str(e)))
+    
+    return successes, errors
 
 
 # -- Tagging Functions --
@@ -281,8 +338,13 @@ if uploaded_file:
 
         if st.button("Confirm Tags/List and Send to Mailchimp"):
             with st.spinner("Sending leads to Mailchimp..."):
-                send_to_mailchimp(tagged_df, get_mailchimp_client(api_key, server_prefix))
-            st.warning("Functionality to send to Mailchimp is not yet implemented. Please check back later.")
+                successes, errors = send_to_mailchimp(tagged_df, get_mailchimp_client(api_key, server_prefix), list_id)
+            
+            st.success(f"Successfully sent {successes} leads to Mailchimp.")
+            if errors:
+                st.error("Errors occurred while sending leads to Mailchimp:")
+                for email, error in errors:
+                    st.write(f"Email: {email}, Error: {error}")
             
     elif user_choice == "Send to Mailchimp" and not mailchimp_ready:
         st.warning("Please enter your Mailchimp API Key and Server Prefix to send leads.")
