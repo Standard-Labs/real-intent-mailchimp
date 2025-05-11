@@ -207,7 +207,7 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[i
                 "status": "subscribed",
                 "merge_fields": merge_fields,
             }
-                        
+                                    
             if "tags" in df.columns:
                 raw_tags = _safe_get(row.get("tags", ""))
                 raw_tags = raw_tags.split(",") if isinstance(raw_tags, str) else []
@@ -266,6 +266,14 @@ uploaded_file = st.file_uploader("Upload Your Real Intent CSV", type="csv")
 
 if uploaded_file:
     df = load_csv(uploaded_file)
+    
+    required_columns = ["email_1", "email_2", "email_3", "first_name", "last_name"] # minimum required columns
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if not all(col in df.columns for col in required_columns):
+        st.error(f"CSV file must contain the following columns: {', '.join(required_columns)}. Currently missing: {', '.join(missing_columns)}")
+        st.stop()
+    
     df = normalize_emails(df)
     
     include_no_email = st.checkbox("Include leads with no email address", value=True)
