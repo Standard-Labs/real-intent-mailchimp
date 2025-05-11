@@ -159,7 +159,7 @@ def fetch_mailchimp_lists(api_key: str, server_prefix: str) -> dict[str, Any]:
     return get_mailchimp_client(api_key, server_prefix).lists.get_all_lists()
 
 
-def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[int, list[Tuple[str, str]]]:
+def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str, status: str) -> Tuple[int, list[Tuple[str, str]]]:
     """
     Send categorized tags to a Mailchimp list.
     
@@ -199,12 +199,19 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str) -> Tuple[i
                 "FNAME": _safe_get(row.get("first_name", "")),
                 "LNAME": _safe_get(row.get("last_name", "")),
                 "PHONE": _clean_phone(row.get("phone_1", "")),
-                "BIRTHDAY": _safe_get(row.get("birth_month_and_year", ""))
+                "BIRTHDAY": _safe_get(row.get("birth_month_and_year", "")),
+                "ADDRESS": {
+                    "addr1": _safe_get(row.get("address", "")),
+                    "city": _safe_get(row.get("city", "")),
+                    "state": _safe_get(row.get("state", "")),
+                    "zip": str(_safe_get(row.get("zip_code", ""))),
+                    "country": "USA",
+                }
             }
-            
+                        
             payload = {
                 "email_address": email,
-                "status": "subscribed",
+                "status": status,
                 "merge_fields": merge_fields,
             }
                                     
@@ -353,15 +360,26 @@ if uploaded_file:
         csv_categorized = tagged_df.to_csv(index=False).encode('utf-8')
         st.download_button("Download CSV", csv_categorized, "real-intent-mailchimp-leads-tagged.csv", "text/csv")
 
-        if st.button("Confirm Tags/List and Send to Mailchimp"):
-            with st.spinner("Sending leads to Mailchimp..."):
-                successes, errors = send_to_mailchimp(tagged_df, get_mailchimp_client(api_key, server_prefix), list_id)
-            
-            st.success(f"Successfully sent {successes} leads to Mailchimp.")
-            if errors:
-                st.error("Errors occurred while sending leads to Mailchimp:")
-                for email, error in errors:
-                    st.write(f"Email: {email}, Error: {error}")
-            
+        st.subheader("Subscription Status")
+        status_choice = st.selectbox(
+            "Choose subscription status for the contacts:",
+            options=["", "subscribed", "unsubscribed", "cleaned", "pending", "transactional"],
+            index=0,
+            help="Subscriber's current status. (required)",
+        )
+        
+        if status_choice == "":
+            st.warning("Please select a subscription status to continue.")
+        else:
+            if st.button("Confirm Tags/List and Send to Mailchimp"):
+                with st.spinner("Sending leads to Mailchimp..."):
+                    successes, errors = send_to_mailchimp(tagged_df, get_mailchimp_client(api_key, server_prefix), list_id, status_choice)
+                
+                st.success(f"Successfully sent {successes} leads to Mailchimp.")
+                if errors:
+                    st.error("Errors occurred while sending leads to Mailchimp:")
+                    for email, error in errors:
+                        st.write(f"Email: {email}, Error: {error}")
+                
     elif user_choice == "Send to Mailchimp" and not mailchimp_ready:
         st.warning("Please enter your Mailchimp API Key and Server Prefix to send leads.")
