@@ -4,6 +4,9 @@ from typing import Any, Tuple
 
 from mailchimp_marketing import Client
 from mailchimp_marketing.api_client import ApiClientError
+import requests
+import base64
+import json
 
 from lead_tagger import BaseTagger, StandardTagger, Custom_1_Tagger
 
@@ -159,7 +162,7 @@ def fetch_mailchimp_lists(api_key: str, server_prefix: str) -> dict[str, Any]:
     return get_mailchimp_client(api_key, server_prefix).lists.get_all_lists()
 
 
-def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str, status: str) -> Tuple[int, list[Tuple[str, str]]]:
+def send_to_mailchimp(df: pd.DataFrame, api_key: str, server_prefix: str, list_id: str, status: str) -> Tuple[int, list[Tuple[str, str]]]:
     """
     Send categorized tags to a Mailchimp list.
     
@@ -220,18 +223,20 @@ def send_to_mailchimp(df: pd.DataFrame, client: Client, list_id: str, status: st
                 raw_tags = raw_tags.split(",") if isinstance(raw_tags, str) else []
                 if raw_tags:
                     payload["tags"] = [tag.strip() for tag in raw_tags if tag.strip()]
-                        
-            client.lists.add_list_member(
-                list_id,
-                payload,
-                skip_merge_validation=True,
-            )
 
-            successes += 1
+            url = f"https://{server_prefix}.api.mailchimp.com/3.0/lists/{list_id}/members"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": "Basic " + base64.b64encode(f"anystring:{api_key}".encode()).decode(),
+            }
 
-        except ApiClientError as error:
-            errors.append((email, error.text))
-            
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+            if response.status_code >= 400:
+                errors.append((email, response.text))
+            else:
+                successes += 1
+
         except Exception as e:
             errors.append((email, str(e)))
     
@@ -373,7 +378,7 @@ if uploaded_file:
         else:
             if st.button("Confirm Tags/List and Send to Mailchimp"):
                 with st.spinner("Sending leads to Mailchimp..."):
-                    successes, errors = send_to_mailchimp(tagged_df, get_mailchimp_client(api_key, server_prefix), list_id, status_choice)
+                    successes, errors = send_to_mailchimp(tagged_df, api_key, server_prefix, list_id, status_choice)
                 
                 st.success(f"Successfully sent {successes} leads to Mailchimp.")
                 if errors:
